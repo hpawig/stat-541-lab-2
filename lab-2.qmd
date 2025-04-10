@@ -11,13 +11,24 @@ format:
     toc: true
     fig-width: 6
     fig-height: 4
+    warning: false
 ---
 
 # Instructions
 ```{r}
 #| message: false
 #| label: packages
-library(tidyverse)
+# Package names
+packages <- c("tidyverse", "here", "readxl", "scales", "RColorBrewer")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
 ```
 
 
@@ -53,9 +64,7 @@ knitr::include_graphics(here::here("image",
 
 > Aesthetics: 
 > - the percentage of people who believe that vaccines are safe is mapped to the *x*-axis.
-> - the global region variable is mapped to the color aesthetic 
-> - the country variable is mapped to the *y*-axis, and the countries are sorted from smallest to 
-greatest percentage of people who believe that vaccines are safe within their respective global regions.
+> - the global region variable is mapped to the color aesthetic and the facet aesthetic.
 
 4.  What type of graph would you call this? Meaning, what `geom` would you use to produce this plot?
 
@@ -70,11 +79,13 @@ that shows the percentage based on varying degrees of color intensity so that a 
 I'd make sure the new color palette is color-blind friendly.
 > - I would not use Comic sans; I'd change it to another sans font. Comic sans is not necessarily
 fitting for this graph nor for scientific observations.
-> - Stacking each global region's section on top of each other is misleading. To my eye, it appears 
+> - Stacking each global region's section on top of each other is misleading. To my ey, it appears 
 all the countries of Asia have higher reported percentages of thinking vaccines are safe compared to
 all countries in America. Again I think the graph would benefit if the percentage variable was on the
 *y*-axis instead of the *x*-axis. This would also allow an easier interpretation of percentages 
 between regions.
+> - The regions' ordering is meaningless; I'd probably redefine the regions to make them more meaningful (i.e. based on the seven main world regions). I'm not quite sure why former soviet union was chosen to be a 
+world region for this graph.
 
 ## Improving the Bad Visualization
 
@@ -87,7 +98,7 @@ but you may also just use one if it suffices.
 
 ```{r}
 #| label: read-in-wellcome-data
-wellcome_data <- readxl::read_excel(here::here("data",
+wellcome_data <- read_excel(here::here("data",
                                                "wgm2018-dataset-crosstabs-all-countries.xlsx"),
   sheet = "Crosstabs all countries",
   skip = 2, 
@@ -106,44 +117,127 @@ wd <- wellcome_data |>
     question == "Q25 Do you strongly or somewhat agree, strongly or somewhat disagree or neither agree nor disagree with the following statement? Vaccines are safe."
   )
 
-```
+full_df <- read_excel(here('data',
+                                   "wgm2018-dataset-crosstabs-all-countries.xlsx"),
+                              sheet = "Full dataset",
+                              skip = 0,
+                              col_names = TRUE)
 
-```{r}
-#| label: region-lists
+data_dict <- read_excel(here('data',
+                                   "wgm2018-dataset-crosstabs-all-countries.xlsx"),
+                              sheet = "Data dictionary",
+                              skip = 0,
+                              col_names = TRUE) |> 
+  filter(
+    `Variable Name` %in% c('WP5', 'Regions_Report')
+  )
 
-asia_list <- c('Afghanistan', 'Australia','Bangladesh', 'Bhutan', 'Brunei', 'Cambodia', 'China', 'India', 'Indonesia', 'Japan', 'Kazakhstan', 'Kyrgyzstan', 'Laos', 'Malaysia', 'Maldives', 'Mongolia', 'Myanmar', 'Nepal', 'New Zealand','North Korea', 'Northern Cyprus', 'Pakistan', 'Philippines', 'Singapore', 'South Korea', 'Sri Lanka', 'Taiwan', 'Tajikistan', 'Thailand', 'Turkmenistan', 'Uzbekistan', 'Vietnam')
-
-middle_east_n_africa <- c('Algeria', 'Bahrain', 'Egypt', 'Iran','Iraq', 'Israel', 'Jordan', 'Kuwait', 'Lebanon', 'Libya', 'Morocco', 'Palestine', 'Qatar', 'Saudi Arabia', 'Syria', 'Tunisia', 'Turkey','United Arab Emirates', 'Yemen',
-'Mauritania', 'Western Sahara')
-
-america_list <- c('Canada', 'Greenland', 'Mexico', 'United States', 'Belize', 'Costa Rica', 'El Salvador', 'Guatemala', 'Honduras', 'Nicaragua', 'Panama', 'Argentina', 'Bolivia', 'Brazil', 'Chile', 'Colombia', 'Ecuador', 'Guyana', 'Paraguay', 'Peru', 'Suriname', 'Uruguay', 'Venezuela', 'Antigua and Barbuda', 'Bahamas', 'Barbados', 'Cuba', 'Dominica', 'Dominican Republic', 'Grenada', 'Haiti', 'Jamaica', 'Saint Kitts and Nevis', 'Saint Lucia', 'Saint Vincent and the Grenadines', 'Trinidad and Tobago')
-
-europe <- c('Albania', 'Andorra', 'Armenia', 'Austria', 'Azerbaijan', 'Belarus', 'Belgium', 'Bosnia and Herzegovina', 'Bulgaria', 'Croatia', 'Cyprus', 'Czech Republic', 'Denmark', 'Estonia', 'Finland', 'France', 'Georgia', 'Germany', 'Greece', 'Hungary', 'Iceland', 'Ireland', 'Italy', 'Kosovo', 'Latvia', 'Liechtenstein', 'Lithuania', 'Luxembourg', 'Macedonia', 'Malta', 'Moldova', 'Monaco', 'Montenegro', 'Netherlands', 'North Macedonia', 'Norway', 'Poland', 'Portugal', 'Romania', 'San Marino', 'Serbia', 'Slovakia', 'Slovenia', 'Spain', 'Sweden', 'Switzerland', 'Ukraine', 'United Kingdom', 'Vatican City')
-
-former_soviet <- c('Armenia', 'Azerbaijan', 'Belarus', 'Estonia', 'Georgia', 'Kazakhstan', 'Kyrgyzstan', 'Latvia', 'Lithuania', 'Moldova', 'Russia', 'Tajikistan', 'Turkmenistan', 'Ukraine', 'Uzbekistan'
-)
-
-sub_saharan_list <- c('Angola', 'Benin', 'Botswana', 'Burkina Faso', 'Burundi', 'Cabo Verde', 'Cameroon', 'Central African Republic', 'Chad', 'Comoros', 'Congo (Congo-Brazzaville)', 'Congo, Rep.', 'Djibouti', 'Equatorial Guinea', 'Eritrea', 'Eswatini', 'Ethiopia', 'Gabon', 'Gambia', 'Ghana', 'Guinea', 'Guinea-Bissau', 'Ivory Coast', 'Kenya', 'Lesotho', 'Liberia', 'Madagascar', 'Malawi', 'Mali', 'Mauritius', 'Mozambique', 'Namibia', 'Niger', 'Nigeria', 'Rwanda', 'Sao Tome and Principe', 'Senegal','Sierra Leone', 'South Africa', 'Tanzania', 'The Gambia', 'Togo',
-                      'Uganda','Zambia', 'Zimbabwe')
-```
-
-
-```{r}
-#| label: wellcome-data-mutate
-
-wd <- wd |>
-  # create region variable, using lists from last chunk
+# Creating a tibble of 2 columns: country codes and country names
+country_w_codes <- data_dict |> 
+  filter(`Variable Name` == "WP5") |> 
   mutate(
-    region = case_when(
-      country %in% asia_list ~ "Asia",
-      country %in% middle_east_n_africa ~ "Middle East and North Africa",
-      country %in% sub_saharan_list ~ "Sub-Saharan Africa",
-      country %in% europe ~ "Europe",
-      country %in% america_list ~ "Americas",
-      country %in% former_soviet ~ "Former Soviet Union",
-      TRUE ~ NA_character_
+    country_code = str_split(
+      string = `Variable Type & Codes*`,
+      pattern = ",",
+      n = length(unique(full_df$WP5)), 
+      simplify = TRUE
+      )
+    
+  ) |> 
+  janitor::clean_names() |> 
+  # drop first few columns
+  select(-variable_type_codes, -variable_name, -variable_type_codes,
+         -variable_label_survey_question, -notes) |> 
+  unlist() |> # turns list into a column
+  as_tibble() |> 
+  rename(country = value) |> 
+  mutate(
+    code = str_split(country, "=", n = 2, simplify = TRUE)[, 1],
+    country = str_split(country, "=", n = 2, simplify = TRUE)[, 2],
+    country = str_remove(country, ","),
+    code = as.numeric(code)
+  )
+
+# create tibble with two columns: Region code and region name
+regions_codes <- data_dict |> 
+  filter(`Variable Name` == "Regions_Report") |> 
+  mutate(
+    country_code = str_split(`Variable Type & Codes*`, ",", n = length(unique(full_df$Regions_Report)), simplify = TRUE)
+    
+  ) |> 
+  janitor::clean_names() |> 
+  # drop first few columns
+  select(-variable_type_codes, -variable_name, -variable_type_codes,
+         -variable_label_survey_question, -notes) |> 
+  unlist() |> 
+  as_tibble() |> 
+  rename(region = value) |> 
+  mutate(
+    code = str_split(region, "=", n = 2, simplify = TRUE)[, 1],
+    region = str_split(region, "=", n = 2, simplify = TRUE)[, 2],
+    region = str_remove(region, ","),
+    code = as.numeric(code)
+  )
+  
+```
+
+
+```{r}
+#| label: former-soviet-union-list
+
+former_soviet <- c(
+  "Armenia", "Azerbaijan", "Belarus", "Estonia", "Georgia",
+  "Kazakhstan", "Kyrgyzstan", "Latvia", "Lithuania", "Moldova",
+  "Tajikistan", "Turkmenistan", "Ukraine", "Uzbekistan", "Russia"
+)
+```
+
+
+
+```{r}
+#| label: wellcome-data-assigning
+# create df with country and assigned region
+country_region <- full_df |> 
+  select(WP5, Regions_Report) |> 
+  distinct() |> 
+  left_join(country_w_codes, by = c("WP5" = "code")) |> 
+  left_join(regions_codes, by = c("Regions_Report" = "code")) |> 
+  select(country, region) |> 
+ # replace republic of congo and palestine to match Crosstab country list
+ mutate(
+   country = case_when(
+     str_detect(country, "Palestinian") ~ "Palestine",
+     country == "Republic of Congo" ~ "Congo, Rep.",
+     TRUE ~ country
+   )
+ )
+
+# assign region to plotting data frame with a join
+plot_df <- wd |>
+  left_join(country_region, by = "country") |> 
+  # create new regions
+  mutate(
+    continent = case_when(
+      str_detect(region, "Asia") ~ "Asia",
+      str_detect(region, "America") ~ "Americas",
+      str_detect(region, "Europe") ~ "Europe",
+      str_detect(region, "Africa") ~ "Africa",
+      region == "Middle East" ~ "Middle East and North Africa",
+      region == "Aus/NZ" ~ "Oceania",
+      TRUE ~ "Not Assigned"
     )
-  ) |>
+  ) 
+
+```
+
+
+
+
+
+```{r}
+#| label: plotting-df
+
+plot_df <- plot_df |>
   # calculate percentage of vaccine agree %s by country
   group_by(country) |>
   mutate(
@@ -152,22 +246,19 @@ wd <- wd |>
   ungroup() |>
 
   # calculate median percentage of vaccine agree %s by region
-  group_by(region) |>
+  group_by(continent) |>
   mutate(
     median_percentage = median(percentage, na.rm = TRUE)
   ) |>
   ungroup() |>
   
   # only keep one row for each country (remove dupes)
-  filter(response != "Somewhat agree")
-
-wd <- wd |> 
+  filter(response != "Somewhat agree") |> 
+  select(country, region, percentage, median_percentage, continent) |>
+  # ordering of region and country
   mutate(
-    region = fct_reorder(region, median_percentage),
     country = fct_reorder(country, percentage)
-  ) |> 
-  # order region by median
-  arrange(region, percentage)
+  )
 
 
 ```
@@ -177,22 +268,54 @@ wd <- wd |>
 
 ```{r}
 #| label: new-and-improved-visualization
-plot <- wd |>
-  ggplot(aes(x = percentage, y = fct_reorder(country, percentage), 
-             color = region)) +
-  geom_path() +
+# custom function to get continent sizes
+n_fun <- function(x){
+  return(data.frame(y = 0.995,
+                    label = paste0(
+                      "n = ", length(x))))
+}
+
+update_geom_defaults("text",
+                   list(size = 3.5,
+                        family = "Times New Roman"))
+
+plot <- plot_df |>
+  filter(continent != "Not Assigned") |>
+  ggplot(mapping = aes(
+    x = continent,
+    y = percentage,
+    fill = continent)) +
+  geom_boxplot() +
   labs(
-    title = "Percentage of People Who Believe Vaccines are Safe by Country",
-    x = "Percentage of People Who Believe Vaccines are Safe",
-    y = "Country",
-    color = "Region"
+    title = "Percentage of People Who Believe Vaccines are Safe, by Continent",
+    subtitle = "n = number of countries",
+    x = "",
+    y = ""
   ) +
-  theme_minimal() +
+  theme_bw() +
   theme(
     text = element_text(family = "Arial"),
-    axis.text.x = element_text(angle = 0, hjust = 1),
-    axis.text.y = element_blank()
-  )
+    legend.position = "none",
+    plot.title = element_text(hjust = -0.129),
+    plot.subtitle = element_text(hjust = -0.055,
+                                 face = "italic"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(scale = 100),
+    breaks = seq(0, 1, by = 0.25),
+    limits = c(0.24,1)
+  ) +
+  
+  scale_fill_brewer(palette = 2, type = "qual") + 
+  stat_summary(fun.data = n_fun, 
+               geom = "text", 
+               hjust = 0.24) +
+  coord_flip()
+  
+  
 ```
 
 # Part Two: Broad Visualization Improvement
