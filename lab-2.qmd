@@ -19,7 +19,8 @@ format:
 #| message: false
 #| label: packages
 # Package names
-packages <- c("tidyverse", "here", "readxl", "scales", "RColorBrewer")
+packages <- c("tidyverse", "here", "readxl", "scales", "RColorBrewer", "leaflet")
+
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -277,7 +278,7 @@ n_fun <- function(x){
 
 update_geom_defaults("text",
                    list(size = 3.5,
-                        family = "Times New Roman"))
+                        family = "sans"))
 
 plot <- plot_df |>
   filter(continent != "Not Assigned") |>
@@ -294,7 +295,7 @@ plot <- plot_df |>
   ) +
   theme_bw() +
   theme(
-    text = element_text(family = "Arial"),
+    text = element_text(family = "sans"),
     legend.position = "none",
     plot.title = element_text(hjust = -0.129),
     plot.subtitle = element_text(hjust = -0.055,
@@ -328,19 +329,38 @@ The full Wellcome Global Monitor 2018 report can be found here: <https://wellcom
 
 7.  Select a data visualization in the report that you think could be improved. Be sure to cite both the page number and figure title. Do your best to tell the story of this graph in words. That is, what is this graph telling you? What do you think the authors meant to convey with it?
 
+> I selected chart 2.14, the "Map of interest in knowing more about medicine, disease or health by country" on page 39. This map shows the percentage of people
+that reported "yes" to the survey question "Would you, personally, like to know more about medicine, disease or health?". The darker the color of the country, the "more interested" that country's people are. I think the authors mean to convey countries' "openness" to learning more about health and medicine and show where this openness is more concentrated on the globe.
+
 8.  List the variables that appear to be displayed in this visualization.
+
+The variables that appear on this map are:
+- percentage of people that replied yes to this survey question,
+- country
+- country coordinates?
 
 9.  Now that you're versed in the grammar of graphics (ggplot), list the aesthetics used and which variables are specified for each.
 
+The percentage variable is mapped to color. Country is mapped to the tiles.
+
 10. What type of graph would you call this?
 
+I would call this graph a map.
+
 11. List all of the problems or things you would improve about this graph.
+
+- I would improve the graph's functionality. I know this is a still graph, but I would want to be
+able to hover over a country and see the exact percentage and name of the country. 
+- I would also add a legend to the map that shows the percentage of people that answered "yes" to the survey question.
+- I think I would use a different palette that has two colors on each end of the scale, rather than
+just using different shades of green.
 
 12. Improve the visualization above by either re-creating it with the issues you identified fixed OR by creating a new visualization that you believe tells the same story better.
 
 ```{r}
 #| label: second-improved-visualization
-
+map <- leaflet() |> 
+  addTiles()
 
 ```
 
