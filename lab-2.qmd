@@ -19,7 +19,8 @@ format:
 #| message: false
 #| label: packages
 # Package names
-packages <- c("tidyverse", "here", "readxl", "scales", "RColorBrewer", "leaflet")
+packages <- c("tidyverse", "here", "readxl", "scales", "RColorBrewer", "leaflet",
+              "sf", "rnaturalearth", "countrycode")
 
 
 # Install packages not yet installed
@@ -335,33 +336,122 @@ that reported "yes" to the survey question "Would you, personally, like to know 
 8.  List the variables that appear to be displayed in this visualization.
 
 The variables that appear on this map are:
-- percentage of people that replied yes to this survey question,
-- country
-- country coordinates?
+> - percentage of people that replied yes to this survey question,
+> - country
+> - country coordinates?
 
 9.  Now that you're versed in the grammar of graphics (ggplot), list the aesthetics used and which variables are specified for each.
 
-The percentage variable is mapped to color. Country is mapped to the tiles.
+> The percentage variable is mapped to color. Country is mapped to the geographic tiles.
 
 10. What type of graph would you call this?
 
-I would call this graph a map.
+> Looking up graph types on maps, this is a choropleth graph (https://www.esri.com/arcgis-blog/products/insights/analytics/data-visualization-types).
 
 11. List all of the problems or things you would improve about this graph.
 
-- I would improve the graph's functionality. I know this is a still graph, but I would want to be
+> - I would improve the graph's functionality. I know this is graph on a pdf, but I would want to be
 able to hover over a country and see the exact percentage and name of the country. 
-- I would also add a legend to the map that shows the percentage of people that answered "yes" to the survey question.
-- I think I would use a different palette that has two colors on each end of the scale, rather than
-just using different shades of green.
+> - I would also add a legend to the map that shows the percentage of people that answered "yes" to the survey question.
+- I think I would use a different palette that has two colors on each end of the scale, rather than using different shades of green.
+> - I think there could be more labeling or text on the map itself.
 
 12. Improve the visualization above by either re-creating it with the issues you identified fixed OR by creating a new visualization that you believe tells the same story better.
 
 ```{r}
+#| label: health-interest-data
+map_df <- wellcome_data |>
+  janitor::clean_names() |> 
+  select(
+    country:response, column_n_percent_4
+  ) |> 
+  filter(
+    response == "Yes",
+    str_detect(question, pattern = "Q9")
+  ) |> 
+  rename(
+    percentage_yes = column_n_percent_4
+  ) |> 
+  mutate(
+    percentage_yes = 100*round(percentage_yes, 2)
+  ) |> 
+  select(country, percentage_yes) |> 
+  mutate(iso_a3 = countrycode(country,
+                            origin = "country.name",
+                            destination = "iso3c"),
+         iso_a3 = case_when(
+           country == "Kosovo" ~ "XKX",
+           TRUE ~ iso_a3
+         )) 
+
+
+
+
+```
+
+
+```{r}
 #| label: second-improved-visualization
 map <- leaflet() |> 
-  addTiles()
+  addTiles() 
 
+
+
+# Get world map data from Natural Earth
+world <- ne_countries(scale = "medium", # size
+                      returnclass = "sf") # output object
+
+# Merge Poll data with the world map data
+world_data <- world |>
+  left_join(map_df, by = c("adm0_a3" = "iso_a3"))
+
+# Define color palette based on percentage
+pal <- colorNumeric(
+  palette = "YlOrRd", # Color palette
+  domain = world_data$percentage_yes
+)
+
+# Create leaflet map
+# add a plot label
+map_plot <- world_data |> 
+  leaflet() |> 
+  addTiles() |> 
+  addPolygons(
+    fillColor = ~pal(percentage_yes),
+    color = "black", # Border color
+    weight = 1, # Border weight
+    fillOpacity = 0.7,
+    highlightOptions = highlightOptions(
+      weight = 2,
+      color = "white",
+      fillOpacity = 0.7,
+      bringToFront = TRUE
+    ),
+    # Tooltip label
+    # country: %
+    label = ifelse(
+      is.na(world_data$percentage_yes),
+      paste0('No data available.'),
+      paste0(world_data$country,
+              ": ",
+              world_data$percentage_yes, "%")), 
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto"
+    )
+  ) |> 
+  
+  # Graph title
+  addControl(
+    html = "<div style='font-size: 16px; font-weight: bold; margin: 5px;'>
+    Percentage of People that are interested in health, disease, or medicine</div>
+    \n   (said 'Yes' on Question 9 in Gallup Poll 2018)",
+    position = "bottomleft" # Adjust position as needed
+  )
+
+# Display the map
+map_plot
 ```
 
 ## Third Data Visualization Improvement
