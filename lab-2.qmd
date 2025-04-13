@@ -20,7 +20,7 @@ format:
 #| label: packages
 # Package names
 packages <- c("tidyverse", "here", "readxl", "scales", "RColorBrewer", "leaflet",
-              "sf", "rnaturalearth", "countrycode")
+              "sf", "rnaturalearth", "countrycode", "plotly")
 
 
 # Install packages not yet installed
@@ -278,7 +278,7 @@ n_fun <- function(x){
 }
 
 update_geom_defaults("text",
-                   list(size = 3.5,
+                   list(size = 2.7,
                         family = "sans"))
 
 plot <- plot_df |>
@@ -298,8 +298,8 @@ plot <- plot_df |>
   theme(
     text = element_text(family = "sans"),
     legend.position = "none",
-    plot.title = element_text(hjust = -0.129),
-    plot.subtitle = element_text(hjust = -0.055,
+    plot.title = element_text(hjust = 1.13),
+    plot.subtitle = element_text(hjust = -0.67,
                                  face = "italic"),
     panel.grid.minor = element_blank(),
     panel.grid.major = element_blank(),
@@ -308,16 +308,23 @@ plot <- plot_df |>
   scale_y_continuous(
     labels = scales::percent_format(scale = 100),
     breaks = seq(0, 1, by = 0.25),
-    limits = c(0.24,1)
+    limits = c(0.24,1.2)
   ) +
-  
   scale_fill_brewer(palette = 2, type = "qual") + 
   stat_summary(fun.data = n_fun, 
                geom = "text", 
-               hjust = 0.24) +
+               hjust = 0.27) +
   coord_flip()
-  
-  
+
+ggsave(
+  here::here("image", "improved-wellcome-graph.png"),
+  plot = plot,
+  width = 6,
+  height = 4,
+  dpi = 300
+)
+
+plot
 ```
 
 # Part Two: Broad Visualization Improvement
@@ -335,14 +342,16 @@ that reported "yes" to the survey question "Would you, personally, like to know 
 
 8.  List the variables that appear to be displayed in this visualization.
 
-The variables that appear on this map are:
-> - percentage of people that replied yes to this survey question,
-> - country
-> - country coordinates?
+> The variables that appear on this map are:
+
+> - percentage of people that replied yes to this survey question
+> - country name
 
 9.  Now that you're versed in the grammar of graphics (ggplot), list the aesthetics used and which variables are specified for each.
 
-> The percentage variable is mapped to color. Country is mapped to the geographic tiles.
+> The percentage variable is mapped to polygon fill color. Country name and their respective 
+percentage is mapped to the polygon labels.
+
 
 10. What type of graph would you call this?
 
@@ -460,18 +469,213 @@ map_plot
 
 13. Select a data visualization in the report that you think could be improved. Be sure to cite both the page number and figure title. Do your best to tell the story of this graph in words. That is, what is this graph telling you? What do you think the authors meant to convey with it?
 
+> I chose Chart 2.15 on page 40 titled, "Scatterplot exploring interest in science by those who have sought information." I think this plot is trying to display the correlation between a country's interest 
+in science and the percentage of people that have sought information about health, disease, or medicine. The authors are trying to show that there is a positive correlation between these two variables. The more people are interested in science, the more likely they are to seek information about health, disease, or medicine.
+
+
 14. List the variables that appear to be displayed in this visualization.
+
+> The variables used in this plot are region, response to Question 25, and the percentage answered for some response level.
 
 15. Now that you're versed in the grammar of graphics (ggplot), list the aesthetics used and which variables are specified for each.
 
+>The aesthetics used in this plot are:
+> - the percentage of people that answered "yes" to survey question 8 "Would you, personally, like to know more about science?" is mapped to the *x*-axis.
+> - the percentage of people that answered "yes" to survey question 7 "Have you, personally, tried to get any information about medicine, disease, or health in the past 30 days?" is mapped to the *y*-axis.
+
+
 16. What type of graph would you call this?
 
+> This is a scatterplot.
+
 17. List all of the problems or things you would improve about this graph.
+
+> - I would map another variable to the color aesthetic: region.
+> - I would add in a hover feature where you can see the country name and both of its corresponding percentages
+> - I would make a point corresponding to the whole world as a region highlighted on the graph, so that
+viewers can compare countries' opinions to the world as a whole.
+
 
 18. Improve the visualization above by either re-creating it with the issues you identified fixed OR by creating a new visualization that you believe tells the same story better.
 
 ```{r}
-#| label: third-improved-visualization
+#| label: third-improved-data-creation
+
+# Create a data frame with the percentage of people that agree vaccines are safe worldwide
+worldwide_q7_8 <- wellcome_data |>
+  janitor::clean_names() |> 
+  select(
+    country:response, column_n_percent_4
+  ) |> 
+  # copy question to fill NAs
+  fill(question) |> 
+  filter(
+    str_detect(question, pattern = "Q7") |
+      str_detect(question, pattern = "Q8"),
+    response == "Yes"
+  ) |> 
+  mutate(
+    percentage = column_n_percent_4
+  ) |> 
+  group_by(question, response) |> 
+  summarise(
+    percentage = round(mean(percentage, na.rm = TRUE), 2),
+    region = "World",
+    country = "World"
+  ) |>
+  ungroup() |> 
+  mutate(
+    question = 
+      case_when(
+        str_detect(question, pattern = "Q8") ~ "Q8",
+        str_detect(question, pattern = "Q7") ~ "Q7"
+      
+  )) |> 
+  select(-response) |> 
+  # pivot
+  pivot_wider(
+    names_from = question,
+    values_from = percentage
+  )
+
+
+q7_8_data <- wellcome_data |>
+  janitor::clean_names() |> 
+  select(
+    country:response, column_n_percent_4
+  ) |> 
+  fill(question) |> 
+  filter(
+    str_detect(question, pattern = "Q7") |
+      str_detect(question, pattern = "Q8"),
+    response == "Yes"
+  ) |> 
+  mutate(
+    percentage = column_n_percent_4
+  ) |> 
+  select(country, question, percentage, response)  |> 
+  left_join(country_region, by = "country") |> 
+  mutate(
+    region = ifelse(
+      region == "Aus/NZ", "Australia/New Zealand", region),
+    question = case_when(
+      str_detect(question, pattern = "Q7") ~ "Q7",
+      str_detect(question, pattern = "Q8") ~ "Q8"
+    )
+    ) |>
+  group_by(country, region, question, response) |> 
+  summarize(
+    percentage = round(mean(percentage, na.rm = TRUE), 2)
+  ) |> 
+  ungroup() |> 
+  select(-response) |> 
+    # pivot
+  pivot_wider(
+    names_from = question,
+    values_from = percentage
+  )
+
+
+# join with worldwide summary data
+q7_8_data <- q7_8_data |> 
+  bind_rows(worldwide_q7_8) 
 
 
 ```
+
+```{r}
+#| label: calculate-medians
+
+medians <- q7_8_data |> 
+  filter(region != "World") |>
+  summarize(
+    Q7 = median(Q7, na.rm = TRUE),
+    Q8 = median(Q8, na.rm = TRUE)
+  ) |> as_tibble();medians
+
+
+```
+
+
+
+```{r}
+#| label: third-improved-visualization
+# create a scatterplot comparing countries' interest in science and health, with q7 on the y axis
+# write the code for the plot
+
+# color palette
+pal <- rainbow(length(unique(q7_8_data$region)), start = 0, end = 0.9)
+
+plot <- q7_8_data |> 
+  mutate(isWorld = ifelse(country == "World", TRUE, FALSE)) |>
+  ggplot(mapping = aes(
+    x = Q8,
+    y = Q7,
+    color = region,
+    label = country,
+    size = isWorld,
+    shape = isWorld,
+    text = ifelse(
+      isWorld == FALSE,
+      paste0("x:", Q8, "<br>y:", Q7, "<br>Country:", country, "<br>Region:",region),
+      paste0("Worldwide<br>x:", Q8, "<br>y:", Q7)
+    ))) +
+  geom_jitter() +
+  labs(
+    title = "Interest in Science vs Interest in Health",
+    subtitle = "Percentage of people that answered 'yes' to survey questions Q7 and Q8",
+    x = "",
+    y = ""
+  ) +
+  theme_bw() +
+  theme(
+    text = element_text(family = "sans"),
+    legend.position = "none",
+    plot.title = element_text(hjust = -0.129),
+    plot.subtitle = element_text(hjust = -0.055,
+                                 face = "italic"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  scale_x_continuous(
+    labels = scales::percent_format(scale = 100),
+    breaks = seq(0, 1, by = 0.25),
+    limits = c(0,1)
+  ) +
+  
+  scale_y_continuous(
+    labels = scales::percent_format(scale = 100),
+    breaks = seq(0, 1, by = 0.25),
+    limits = c(0,1)
+  ) +
+  
+  scale_color_manual(values = pal) +
+  coord_cartesian(xlim=c(0,1), ylim=c(0,1)) +
+  # add median vertical and horizontal lines
+  geom_hline(yintercept = medians$Q7, linetype = "dashed", color = "black") +
+  geom_vline(xintercept = medians$Q8, linetype = "dashed", color = "black") +
+  scale_shape_manual(values = c(15, 18)) +
+  scale_size_manual(values = c(2, 4)) +
+  annotate(
+    "text", x = medians$Q8 + 0.09, y = 0, 
+    label = paste0("Median: ", 100*medians$Q8, "%"), size = 4, color = "black"
+    ) +
+    annotate(
+    "text", y = medians$Q7 + 0.05, x = 0.04, 
+    label = paste0("Median: ", 100*medians$Q7,"%"), size = 4, color = "black"
+    )
+
+
+# Re-make Plot but implementing hover tooltips to show percentage and country name when you're on the point
+plotly_plot <- plot |> 
+  ggplotly(tooltip = c("text")) |> 
+    (\(.) {
+    .$x$layout$title$x <- 0 # Left justify title
+    . # Return the modified plotly object
+  })()
+
+
+plotly_plot
+```
+
