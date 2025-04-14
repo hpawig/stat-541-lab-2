@@ -307,13 +307,13 @@ plot <- plot_df |>
   ) +
   scale_y_continuous(
     labels = scales::percent_format(scale = 100),
-    breaks = seq(0, 1, by = 0.25),
+    breaks = seq(0, 1.1, by = 0.25),
     limits = c(0.24,1.2)
   ) +
   scale_fill_brewer(palette = 2, type = "qual") + 
   stat_summary(fun.data = n_fun, 
                geom = "text", 
-               hjust = 0.27) +
+               hjust = 0.31) +
   coord_flip()
 
 ggsave(
@@ -480,6 +480,7 @@ in science and the percentage of people that have sought information about healt
 15. Now that you're versed in the grammar of graphics (ggplot), list the aesthetics used and which variables are specified for each.
 
 >The aesthetics used in this plot are:
+
 > - the percentage of people that answered "yes" to survey question 8 "Would you, personally, like to know more about science?" is mapped to the *x*-axis.
 > - the percentage of people that answered "yes" to survey question 7 "Have you, personally, tried to get any information about medicine, disease, or health in the past 30 days?" is mapped to the *y*-axis.
 
@@ -591,7 +592,10 @@ medians <- q7_8_data |>
   summarize(
     Q7 = median(Q7, na.rm = TRUE),
     Q8 = median(Q8, na.rm = TRUE)
-  ) |> as_tibble();medians
+  ) |> as_tibble(
+    rownames = "median",
+    colnames = c("Q7", "Q8")
+  )
 
 
 ```
@@ -617,12 +621,13 @@ plot <- q7_8_data |>
     shape = isWorld,
     text = ifelse(
       isWorld == FALSE,
-      paste0("x:", Q8, "<br>y:", Q7, "<br>Country:", country, "<br>Region:",region),
-      paste0("Worldwide<br>x:", Q8, "<br>y:", Q7)
+      paste0("x:", Q8, "<br>y: ", Q7, "<br>Country: ",
+             country, "<br>Region: ",region),
+      paste0("Worldwide<br>x: ", Q8, "<br>y: ", Q7)
     ))) +
   geom_jitter() +
   labs(
-    title = "Interest in Science vs Interest in Health",
+    title = "Countries' Interest in Science vs Interest in Health by Region",
     subtitle = "Percentage of people that answered 'yes' to survey questions Q7 and Q8",
     x = "",
     y = ""
