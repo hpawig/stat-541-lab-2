@@ -459,6 +459,8 @@ map_plot <- world_data |>
   ) |> 
   
   # Graph title
+  # consulted Gemini for use of addControl
+  
   addControl(
     html = "<div style='font-size: 16px; font-weight: bold; margin: 5px;'>
     Percentage of People that are interested in health, disease, or medicine</div>
