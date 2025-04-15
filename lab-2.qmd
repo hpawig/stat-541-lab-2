@@ -31,6 +31,8 @@ if (any(installed_packages == FALSE)) {
 
 # Packages loading
 invisible(lapply(packages, library, character.only = TRUE))
+## package loading chunk idea from: 
+## https://stackoverflow.com/questions/4090169/elegant-way-to-check-for-missing-packages-and-install-them
 ```
 
 
@@ -271,6 +273,8 @@ plot_df <- plot_df |>
 ```{r}
 #| label: new-and-improved-visualization
 # custom function to get continent sizes
+## CITATION (for adding n to boxplot):
+## https://waterdata.usgs.gov/blog/boxplots/
 n_fun <- function(x){
   return(data.frame(y = 1.1,
                     label = paste0(
@@ -385,11 +389,13 @@ map_df <- wellcome_data |>
     percentage_yes = 100*round(percentage_yes, 2)
   ) |> 
   select(country, percentage_yes) |> 
+  # creating country 3-digit code column
+  # with the help of the countrycode package, which I asked Gemini about
   mutate(iso_a3 = countrycode(country,
                             origin = "country.name",
                             destination = "iso3c"),
          iso_a3 = case_when(
-           country == "Kosovo" ~ "XKX",
+           country == "Kosovo" ~ "XKX", # only Kosovo was not matched
            TRUE ~ iso_a3
          )) 
 
@@ -404,7 +410,8 @@ map_df <- wellcome_data |>
 map <- leaflet() |> 
   addTiles() 
 
-
+## Citation
+## To write this code chunk I asked Gemini to help me utilize the rnaturalearth and leaflet packages
 
 # Get world map data from Natural Earth
 world <- ne_countries(scale = "medium", # size
@@ -608,6 +615,7 @@ medians <- q7_8_data |>
 # write the code for the plot
 
 # color palette
+# idea to use rainbow() from Gemini
 pal <- rainbow(length(unique(q7_8_data$region)), start = 0, end = 0.9)
 
 plot <- q7_8_data |> 
@@ -673,6 +681,9 @@ plot <- q7_8_data |>
 
 
 # Re-make Plot but implementing hover tooltips to show percentage and country name when you're on the point
+# Asked Gemini how to left-justify plot title
+# Used GitHub copilot to autocomplete for tooltip option
+
 plotly_plot <- plot |> 
   ggplotly(tooltip = c("text")) |> 
     (\(.) {
